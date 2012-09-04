@@ -30,46 +30,67 @@ import sys
 #    from that set, applies in order and passes some given test.
 #    Evaluate this lazily.
 
-def union(s1, s2):
-    return s1 | s2
 
-success_map = {}
-def successful(s):
-    try:
-        return success_map[s]
-    except KeyError:
-        pass
 
-    return the_answer(s)
+class DependencyLearner:
+    def __init__(self, n_items):
+        self._N = n_items
+        self._success_map = {}
+        self._reqs = []
 
-# Here's our secret:
-#     
-#   A <- B <- C
-#     <- D <- E
-#     <- F
-def the_answer(s):
-    a = s & 1
-    b = s & 2
-    c = s & 4
-    d = s & 8
-    e = s & 16
-    f = s & 32
-    if (b or d or f) and not a:
-        return False
-    if c and not b:
-        return False
-    if e and not d:
-        return False
-    return True
+        for i in xrange(n_items + 1):
+            self._success_map[(1<<i)-1] = True
 
-def populate_success_map(n):
-    for i in xrange(n+1):
-        success_map[(1<<i) - 1] = True
+    def _requirement_closure(self, seq, n):
+        r = 0
+        for i in xrange(n):
+            b = seq & 1
+            if b:
+                # XXX this will need work if _reqs can be multiple.
+                r |= self._reqs[i]
+            seq >>= 1
+        return r
 
-populate_success_map(6)
+    def sequenceIsValid(self, seq):
+        raise NotImplemented("sequenceIsValid")
 
-# combinations all n-bit values with b bits set.
-def combinations(n, b):
+    def _successful(self, seq):
+        try:
+            return self._success_map[seq]
+        except KeyError:
+            return self.sequenceIsValid(seq)
+
+    def _find_requirements(self, i):
+        r = None
+        rbits = i+10 # stupid overflow to avoid problems
+        bit = 1<<i
+        for n_pred in xrange(i+1):
+            for seq in _combinations(i, n_pred):
+                attempt = self._requirement_closure(seq, i)
+                attempt |= bit
+
+                bits_set = _bitcount(attempt)
+                if self._successful(attempt):
+                    if bits_set < rbits:
+                        r = [ seq | bit ]
+                        rbits = bits_set
+                    elif bits_set == rbits:
+                        r.append( seq | bit )
+            if r is not None:
+                break
+        return r
+
+    def solve(self):
+        self._reqs = []
+        for i in xrange(self._N):
+            r = self._find_requirements(i)
+            # XXXX should allow for remembering other values.
+            self._reqs.append(r[0])
+
+        return self._reqs[:]
+
+# yield all n-bit values with b bits set.
+def _combinations(n, b):
     if b == 0:
         yield 0
     elif b > n:
@@ -82,24 +103,13 @@ def combinations(n, b):
     else:
         for i in xrange(n):
             bit = (1<<i)
-            for v in combinations(i, b-1):
+            for v in _combinations(i, b-1):
                 yield v | bit
 
-
-requires = []
-
-def closure(seq, n):
-    r = 0
-    for i in xrange(n):
-        b = seq & 1
-        if b:
-            r |= requires[i]
-        seq >>= 1
-    return r
-
-BYTE_BITS = [ "{0:b}".format(i).count("1") for i in range(256) ]
-def bitcount(val):
-    bb = BYTE_BITS
+_BYTE_BITS = [ "{0:b}".format(i).count("1") for i in range(256) ]
+# return the number of bits set in 'val'
+def _bitcount(val):
+    bb = _BYTE_BITS
     r = 0
     while val:
         b = val & 255
@@ -107,62 +117,31 @@ def bitcount(val):
         r += bb[b]
     return r
 
-def find_requirements(i):
-    r = None
-    rbits = i+10 # stupid overflow to avoid problems
-    bit = 1<<i
-    for n_pred in xrange(i+1):
-#        print 'n_pred==', n_pred, "bit ==", bit
-        for seq in combinations(i, n_pred):
-            attempt = closure(seq, i)
-            attempt |= bit
 
-            bits_set = bitcount(attempt)
-            if successful(attempt):
-                if bits_set < rbits:
-                    r = [ seq | bit ]
-                    rbits = bits_set
-                elif bits_set == rbits:
-                    r.append( seq | bit )
-        if r is not None:
-            break
-    return r
-
-for i in xrange(6):
-    output = find_requirements(i)
-    print "{0:06b}".format(1<<i), "-> ", (" ".join("{0:06b}".format(o) for o in output))
-    requires.append( output[0] )
-
-# for i = 1..N, where N is the length of the sequence.
-#   Let C = S_i
-#   For n = 0..i-1:
-#      For SS in (all n-element subsequences of S_i..n):
-#         Let SS' = the union of 
-
-#      Consider each n-element subsequences SS of the original
-#         sequence preceding C:
-#            If 
-#         Let SS' = SS + C.
-#         If
-#      If we now know any 
+class DemoDepLearner(DependencyLearner):
+    #   A <- B <- C
+    #     <- D <- E
+    #     <- F
+    def sequenceIsValid(self, s):
+        a = s & 1
+        b = s & 2
+        c = s & 4
+        d = s & 8
+        e = s & 16
+        f = s & 32
+        if (b or d or f) and not a:
+            return False
+        if c and not b:
+            return False
+        if e and not d:
+            return False
+        return True
 
 
+DDL = DemoDepLearner(6)
+r = DDL.solve()
 
+for i in xrange(len(r)):
+    output = r[i]
+    print "{0:06b}".format(1<<i), "-> ", "{0:06b}".format(output)
 
-
-# Start with [] in min-chains set.
-# Start with [] in the valid-chains set.
-# Start with all commits in unsorted-commits set.
-# Start with considered-chains-len = 0.
-
-# While there are unsorted-commits:
-#    Let PRED = all 
-#    Let 
-#    For each unsorted commit U:
-#      If there is a valid chain CH of length N-1, try CH-
-
-
-#    While new-chains:
-#       - Try each unsorted-commit on each new-chain  For each such success,
-#         add (newchain + unsorted-commit) to new-chains, and remove that
-#         unsorted commit from unsorted-commits.
