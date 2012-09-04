@@ -250,7 +250,7 @@ class GitDependencyLearner(DependencyLearner):
     def cleanBranches(self):
         for b in self._branches:
             assert b.startswith("gitdag-")
-            subprocess.call(["git", "branch", "-D", b])
+            subprocess.call(["git", "branch", "-D", b], stdout=subprocess.PIPE)
 
     def display(self):
         result = self.getResult()
@@ -268,9 +268,11 @@ def run(argv):
         started_at = whereami()
         basis, target = parseCommandLine(argv)
         commits = listCommits(basis, target)
+        basisCommit = subprocess.check_output(["git", "rev-parse", basis]).strip()
         print "Looking at %d commits"%len(commits)
-        GDL = GitDependencyLearner(basis, commits)
+        GDL = GitDependencyLearner(basisCommit, commits)
         GDL.solve()
+        print
         GDL.display()
 
     finally:
