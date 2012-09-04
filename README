@@ -1,0 +1,48 @@
+git-finddeps
+
+THIS IS A HORRIBLE KLUDGE.  IF YOU DON'T LIKE THIS CODE, I'M NOT SURPRISED.
+
+Here's a little program to find out which git commits in a branch depend on
+one another.  Let's say that Alice gets a branch from Bob and wants to learn
+how much she can refactor it.  She fetches Bob's branch, and then says:
+    "git-finddeps.py master bob/newbranch"
+
+After some chugging, it tells her:
+
+d827a5495a9d05976f5610655f7e4b5b160a2dac ===>
+8b081231b54f1bb33243078fab510a9a543242a0 ===>
+	d827a5495a9d05976f5610655f7e4b5b160a2dac
+3746215350f4a25c5ec619a8fbe25f3637bb626f ===>
+	8b081231b54f1bb33243078fab510a9a543242a0
+0f45dbefed1ddca4772bf66afb268bc20aefa1d1 ===>
+7a8366a3eb7081c29cbc0ebf0e9757cbfd71a86d ===>
+e04e1a2e7d67861881c9e237dcea344dda39e858 ===>
+d6ad00a01f703a79d9ca6d6edd958b4d05279b4e ===>
+c76a332887c2f793fd66bd02accb05a7bb0d9f83 ===>
+485b4b7eee3bebf3f783d5d0d5d3c9cd8133f7f7 ===>
+0a2fcc55c539f39b7a834fcd19a7043026783c4f ===>
+81c6db32887f68e791df4dca806c9ac132e53ae4 ===>
+3ea37e5faae2eefa2dda2136f43fbf677325e080 ===>
+2131cc125bde702b30ad7655967f13ef9e4c8973 ===>
+e964f811437290ada91b62b44efb5caf7b491da4 ===>
+4bd90e20b92fbe2b93fc53e24254f00e663d057e ===>
+
+Hey! Only two of these commits actually depend on anything else. It looks
+like 374621535 -> 8b081231b -> d827a5495a is a sequence of dependencies, and
+the other commits could be reordered freely.
+
+Right now it runs pretty slow (not O(2^N) but it feels like it), and does
+badly with some branch structures, and only looks at the output of
+git-cherry-pick to see if a sequence is valid.
+
+
+
+TODO:
+  - Make the code not suck.
+  - Take compilation into account
+  - Try to make the heuristics faster
+  - Better output format
+  - Cache intermediate results
+  - Find better options than cherry-pick
+
+
